@@ -25,6 +25,10 @@ var UserSchema = new mongoose.Schema({
   a:{
     type:Number,
     required:true
+  },
+  coin:{
+    type:Number,
+    required:true
   }
 });
 

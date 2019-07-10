@@ -3,7 +3,7 @@ const ObjectID = require('mongodb').ObjectID;
 // name of our database
 const dbname = "backend";
 // location of where our mongoDB database is located
-const url = "mongodb://localhost:27017";
+const url = "mongodb://admin:2867337AaXc@localhost:27017/backend?authSource=admin";
 // const url = "mongodb://root:261500Aa@localhost:27017/crud_mongodb?authSource=admin"
 // Options for mongoDB
 const mongoOptions = {

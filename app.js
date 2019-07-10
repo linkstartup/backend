@@ -86,7 +86,8 @@ app.use(bodyParser.urlencoded({
 
 
 // connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/backend');
+
+mongoose.connect('mongodb://admin:2867337AaXc@localhost:27017/backend?authSource=admin');
 // mongoose.connect("mongodb://root:261500Aa@localhost:27017/crud_mongodb?authSource=admin")
 var db2 = mongoose.connection;
 
@@ -155,7 +156,8 @@ router.post('/register', function(req, res, next) {
         username: req.body.username,
         password: req.body.password,
         leftRatio:0.5,
-        a:50
+        a:50,
+        coin:0
       }
   
       User.create(userData, function(error, user) {
@@ -179,28 +181,8 @@ router.post('/register', function(req, res, next) {
   
 
 
-app.post('/userEquity', function(req, res) {
-
-    db.getDB().collection('users').find({
-        _id: new ObjectId(req.body.user._id)
-    }).toArray((err, documents) => {        
-        res.json({
-            leftRatio:documents[0].leftRatio,
-            a:documents[0].a,
-        })
-    })
-})
 
 
-app.post('/findPhoto', function(req, res) {
-
-    db.getDB().collection('photo').find({
-    }).sort({createAt:1}).toArray((err, documents) => {        
-        res.json({
-            photo:documents
-        })
-    })
-})
 
   // GET route after registering
   router.post('/successLog', function(req, res, next) {
@@ -212,11 +194,13 @@ app.post('/findPhoto', function(req, res) {
           } else {
             if (user === null) {
               res.json({
-                msg:'please log in'
+                msg:'please log in',
+                status:false
               })
             } else {
               res.json({
-                user:user
+                user:user,
+                status:true
               })
             }
           }
@@ -248,6 +232,79 @@ app.post('/findPhoto', function(req, res) {
 
 
 
+  app.get('/coinbase',(req,res)=>{
+
+    db.getDB().collection('coinbase').insertOne({coinbase:crypto.createHmac('sha1', secret).update('name1234').digest('hex'),isValid:1}, (err, result) => { //加入成员表
+        res.json({message:'success'})
+    });
+})
+
+
+
+//admin top up
+app.post('/topup', (req, res) => {
+
+    var key = req.body.key;
+    var userId=req.body.userId;
+
+    db.getDB().collection('coinbase').find({
+        coinbase: key
+    }).toArray((err, documents) => {
+        if(documents.length==0){
+            res.json({message:'no key'})
+        }else{
+            if(documents[0].isValid==0){
+                res.json({message:'already used'})
+            }else{
+                db.getDB().collection('coinbase').updateOne({
+                    coinbase: key
+                },{
+                    $set: {
+                        isValid: 0
+                    }
+                },(err, res) => {
+                    db.getDB().collection('transferHistory').insertOne({userId:userId,coin:100,type:'topup'}, (err, result)=>{
+                        res.json({message:'success'})
+                    })
+                })
+            }
+            
+        }
+    })
+});
+
+
+app.post('/consume', (req, res) => {
+    var userId=req.body.userId;
+    db.getDB().collection('transferHistory').insertOne({userId:userId,coin:-1,type:'consume'}, (err, result)=>{
+        res.json({
+            result:result
+        })
+    })
+})
+
+
+
+//my coin
+app.post('/mycoin', (req, res) => {
+
+    var userId = req.body.userId;
+    db.getDB().collection('transferHistory').find({
+        userId: userId
+    }).toArray((err, documents) => {
+        var coin=0;
+        for(let i=0;i<documents.length;i++){
+            coin=coin+documents[i].coin;
+        }
+        res.json({transferHistory:documents,totalCoin:coin})
+    })
+
+
+
+
+
+
+});
 
 
 
@@ -267,6 +324,21 @@ app.post('/findPhoto', function(req, res) {
 
 
 
+app.post('/userEquity', function(req, res) {
+
+    db.getDB().collection('users').find({
+        _id: new ObjectId(req.body.user._id)
+    }).toArray((err, documents) => {        
+        res.json({
+            leftRatio:documents[0].leftRatio,
+            a:documents[0].a,
+        })
+    })
+})
+
+
+
+
 app.post('/getPriority', function(req, res) {
     res.json({
         leftRatio:0.7,
@@ -277,8 +349,67 @@ app.post('/getPriority', function(req, res) {
 
 
 
+
+
+app.post('/findPhoto', function(req, res) {
+
+    db.getDB().collection('photo').find({
+    }).sort({createAt:1}).toArray((err, documents) => {        
+        res.json({
+            photo:documents
+        })
+    })
+})
+
+
+app.post('/findMovie', function(req, res) {
+
+    db.getDB().collection('movie').find({
+    }).sort({createAt:1}).toArray((err, documents) => {        
+        res.json({
+            movie:documents
+        })
+    })
+})
 // default options
 app.use(fileUpload());
+
+app.post('/uploadmovie', function(req, res) {
+    if (Object.keys(req.files).length == 0) {
+        return res.status(400).send('No files were uploaded.');
+    }
+
+    // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+    let sampleFile = req.files.sampleFile;
+    // let name = req.files.sampleFile.name.replace(/\s+/g,"");
+    let name = req.files.sampleFile.name;
+    var imgSuffix=name.split('.')[name.split('.').length-1];
+    name = crypto.createHmac('sha1', secret)
+                   .update(name)
+                   .digest('hex');
+    name=name+'.'+imgSuffix
+    // name = name.replace(/\-+/g,"");
+    // name = name.replace(/\.+/g,"");
+
+    // name=name.substring(0, 10);
+
+    // name=name+'.'+imgSuffix
+    console.log(req.files)
+    // Use the mv() method to place the file somewhere on your server
+    // sampleFile.mv('./clip/Blur/' + name, function(err) {
+    //     res.json({imageUrl:'https://www.indo123.co/clip/Blur/' + name,imgName:name});
+    // });
+
+    sampleFile.mv('/usr/local/var/www/frontend/movie/base/' + name, function(err) {
+        console.log(name)
+        db.getDB().collection('movie').insertOne({name:name,createAt:new Date(),uploadBy:'root'}, (err, result) => { //加入成员表
+
+            res.json({imageUrl:'http://localhost/frontend/movie/base/' + name,imgName:name});
+
+
+        });
+    });    
+});
 
 app.post('/upload', function(req, res) {
     if (Object.keys(req.files).length == 0) {
@@ -319,6 +450,7 @@ app.post('/upload', function(req, res) {
 
 
 
+
 //base64
 app.post('/base64', (req, res) => {
 
@@ -343,6 +475,24 @@ app.post('/base64', (req, res) => {
     });
 
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
